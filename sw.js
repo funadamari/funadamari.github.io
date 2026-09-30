@@ -1,285 +1,190 @@
+/* =========================================================
+   富岡並木ふなだまり公園愛護会
+   Image Viewer Service Worker
+   ========================================================= */
+
 const VIEWER_PATH = "/viewer/";
 
 const LAUNCH_REQUEST =
-    "funadamariServiceWorkerRequest";
+  "funadamariServiceWorkerRequest";
+
+/* =========================================================
+   Install
+   ========================================================= */
+
+self.addEventListener("install", function (event) {
+
+  self.skipWaiting();
+
+});
 
 
-/*
-=========================================================
- Service Worker install
-=========================================================
-*/
+/* =========================================================
+   Activate
+   ========================================================= */
 
-self.addEventListener(
-    "install",
-    function (event) {
+self.addEventListener("activate", function (event) {
 
-        self.skipWaiting();
+  event.waitUntil(
+    self.clients.claim()
+  );
 
-    }
-);
+});
 
 
-/*
-=========================================================
- Service Worker activate
-=========================================================
-*/
+/* =========================================================
+   launcherからの要求
+   ========================================================= */
 
-self.addEventListener(
-    "activate",
-    function (event) {
+self.addEventListener("message", function (event) {
 
-        event.waitUntil(
-            self.clients.claim()
-        );
+  const data = event.data;
 
-    }
-);
+  if (!data) {
+    return;
+  }
 
+  if (data.type !== LAUNCH_REQUEST) {
+    return;
+  }
 
-/*
-=========================================================
- launcherからの要求
-=========================================================
-*/
+  event.waitUntil(
+    handleViewerRequest(data)
+  );
 
-self.addEventListener(
-    "message",
-    function (event) {
-
-        const data =
-            event.data;
+});
 
 
-        if (!data) {
-
-            return;
-
-        }
-
-
-        if (
-            data.type !==
-            LAUNCH_REQUEST
-        ) {
-
-            return;
-
-        }
-
-
-        event.waitUntil(
-            handleViewerRequest(data)
-        );
-
-    }
-);
-
-
-/*
-=========================================================
- viewer検索・focus・画像変更
-=========================================================
-*/
+/* =========================================================
+   既存viewerを探して
+   ・前面にする
+   ・画像を変更する
+   ========================================================= */
 
 async function handleViewerRequest(data) {
 
-    const clientList =
-        await self.clients.matchAll({
-
-            type: "window",
-
-            includeUncontrolled: true
-
-        });
+  const clientList =
+    await self.clients.matchAll({
+      type: "window",
+      includeUncontrolled: true
+    });
 
 
-    /*
-       viewerを探す
-    */
-
-    let viewerClient = null;
+  let viewerClient = null;
 
 
-    for (
-        const client
-        of clientList
-    ) {
+  /* -------------------------------------------------------
+     viewerを探す
+     ------------------------------------------------------- */
 
-        try {
+  for (const client of clientList) {
 
-            const url =
-                new URL(
-                    client.url
-                );
+    try {
 
+      const url =
+        new URL(client.url);
 
-            if (
-                url.pathname ===
-                VIEWER_PATH
-            ) {
+      if (url.pathname === VIEWER_PATH) {
 
-                viewerClient =
-                    client;
+        viewerClient = client;
 
-                break;
+        break;
 
-            }
+      }
 
-        }
-        catch (error) {
+    }
+    catch (error) {
 
-            // ignore
-
-        }
+      // URL解析エラーは無視
 
     }
 
+  }
 
-    /*
-       viewerが存在する場合
-    */
 
-    if (
-        viewerClient &&
-        "focus" in viewerClient
-    ) {
+  /* -------------------------------------------------------
+     viewerが見つかった場合
+     ------------------------------------------------------- */
 
-        try {
+  if (viewerClient) {
 
-            /*
-               まずviewerを前面にする
-            */
+    /* -----------------------------------------------------
+       まず前面にする
+       ----------------------------------------------------- */
 
-            await viewerClient.focus();
+    if ("focus" in viewerClient) {
 
-        }
-        catch (error) {
+      try {
 
-            console.warn(
-                "viewer focus failed:",
-                error
-            );
+        await viewerClient.focus();
 
-        }
-
+      }
+      catch (error) {
 
         /*
-           viewerへ画像変更要求を送る
+         focusがブラウザの制限で失敗する場合がある。
+
+         その場合でも画像変更は続行する。
         */
 
-        try {
+        console.warn(
+          "viewer focus failed:",
+          error
+        );
 
-            viewerClient.postMessage({
-
-                type:
-                    "funadamariSetImage",
-
-                image:
-                    data.image,
-
-                title:
-                    data.title,
-
-                timestamp:
-                    Date.now()
-
-            });
-
-        }
-        catch (error) {
-
-            console.warn(
-                "viewer message failed:",
-                error
-            );
-
-        }
-
-
-        return;
+      }
 
     }
 
 
-    /*
-       viewerが存在しない場合
-    */
+    /* -----------------------------------------------------
+       viewerへ画像変更を通知
+       ----------------------------------------------------- */
 
-    if (
-        self.clients.openWindow
-    ) {
+    try {
 
-        try {
+      viewerClient.postMessage({
 
-            const params =
-                new URLSearchParams();
+        type:
+          "funadamariSetImage",
 
+        image:
+          data.image,
 
-            if (data.image) {
+        title:
+          data.title || "",
 
-                params.set(
-                    "image",
-                    data.image
-                );
+        timestamp:
+          Date.now()
 
-            }
-
-
-            if (data.title) {
-
-                params.set(
-                    "title",
-                    data.title
-                );
-
-            }
-
-
-            const url =
-                VIEWER_PATH +
-                "?" +
-                params.toString();
-
-
-            const newClient =
-                await self.clients.openWindow(
-                    url
-                );
-
-
-            if (
-                newClient &&
-                "focus" in newClient
-            ) {
-
-                try {
-
-                    await newClient.focus();
-
-                }
-                catch (error) {
-
-                    console.warn(
-                        "new viewer focus failed:",
-                        error
-                    );
-
-                }
-
-            }
-
-        }
-        catch (error) {
-
-            console.warn(
-                "viewer open failed:",
-                error
-            );
-
-        }
+      });
 
     }
+    catch (error) {
+
+      console.warn(
+        "viewer message failed:",
+        error
+      );
+
+    }
+
+    return;
+
+  }
+
+
+  /* -------------------------------------------------------
+     viewerが存在しない場合
+
+     ここでは絶対に openWindow() しない。
+
+     初回viewerは launcher のボタンから
+     window.open() で開く。
+     ------------------------------------------------------- */
+
+  console.log(
+    "No existing viewer was found."
+  );
 
 }
