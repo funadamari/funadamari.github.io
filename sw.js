@@ -102,15 +102,17 @@ async function handleViewerRequest(data) {
   }
 
 
-  /* -------------------------------------------------------
-     viewerが見つかった場合
-     ------------------------------------------------------- */
-
 if (viewerClient) {
 
     try {
 
-        await viewerClient.focus();
+        const focusedClient =
+            await viewerClient.focus();
+
+        console.log(
+            "viewerClient.focus() succeeded:",
+            focusedClient
+        );
 
     }
     catch (error) {
@@ -143,7 +145,7 @@ if (viewerClient) {
 
     return;
 }
-  /* -------------------------------------------------------
+   /* -------------------------------------------------------
      viewerが存在しない場合
 
      ここでは絶対に openWindow() しない。
