@@ -106,47 +106,43 @@ async function handleViewerRequest(data) {
      viewerが見つかった場合
      ------------------------------------------------------- */
 
-  if (viewerClient) {
-
-    /* -----------------------------------------------------
-       viewerへ画像変更と前面化の要求を通知
-       
-       Service Worker自身では focus() を実行しない。
-       viewer側で window.focus() を実行する。
-       ----------------------------------------------------- */
+if (viewerClient) {
 
     try {
 
-      viewerClient.postMessage({
-
-        type:
-          "funadamariSetImage",
-
-        image:
-          data.image,
-
-        title:
-          data.title || "",
-
-        timestamp:
-          Date.now()
-
-      });
+        await viewerClient.focus();
 
     }
     catch (error) {
 
-      console.warn(
-        "viewer message failed:",
-        error
-      );
+        console.warn(
+            "viewerClient.focus() failed:",
+            error
+        );
+
+    }
+
+    try {
+
+        viewerClient.postMessage({
+            type: "funadamariSetImage",
+            image: data.image,
+            title: data.title || "",
+            timestamp: Date.now()
+        });
+
+    }
+    catch (error) {
+
+        console.warn(
+            "viewer message failed:",
+            error
+        );
 
     }
 
     return;
-
-  }
-
+}
   /* -------------------------------------------------------
      viewerが存在しない場合
 
