@@ -109,36 +109,10 @@ async function handleViewerRequest(data) {
   if (viewerClient) {
 
     /* -----------------------------------------------------
-       まず前面にする
-       ----------------------------------------------------- */
-
-    if ("focus" in viewerClient) {
-
-      try {
-
-        await viewerClient.focus();
-
-      }
-      catch (error) {
-
-        /*
-         focusがブラウザの制限で失敗する場合がある。
-
-         その場合でも画像変更は続行する。
-        */
-
-        console.warn(
-          "viewer focus failed:",
-          error
-        );
-
-      }
-
-    }
-
-
-    /* -----------------------------------------------------
-       viewerへ画像変更を通知
+       viewerへ画像変更と前面化の要求を通知
+       
+       Service Worker自身では focus() を実行しない。
+       viewer側で window.focus() を実行する。
        ----------------------------------------------------- */
 
     try {
@@ -172,7 +146,6 @@ async function handleViewerRequest(data) {
     return;
 
   }
-
 
   /* -------------------------------------------------------
      viewerが存在しない場合
